@@ -145,6 +145,21 @@ class UserOut(BaseModel):
     UKNF_ID: Optional[str] = None
     DATE_CREATE: Optional[datetime] = None
     DATE_ACTRUALIZATION: Optional[datetime] = None
+    
+    @staticmethod
+    def mask_pesel(pesel: Optional[str]) -> Optional[str]:
+        """Mask PESEL to show only last 4 digits (format: *******5123)"""
+        if not pesel or len(pesel) < 4:
+            return pesel
+        return '*' * (len(pesel) - 4) + pesel[-4:]
+    
+    @classmethod
+    def from_db_row(cls, row):
+        """Create UserOut instance from database row with masked PESEL"""
+        data = dict(row._mapping)
+        if data.get('PESEL'):
+            data['PESEL'] = cls.mask_pesel(data['PESEL'])
+        return cls(**data)
 
 
 class UserGroupAssociation(BaseModel):
@@ -318,7 +333,7 @@ def get_user(
     if row is None:
         raise HTTPException(status_code=404, detail="User not found")
     
-    return UserOut(**row._mapping)
+    return UserOut.from_db_row(row)
 
 
 @app.post("/users/{user_id}/groups", status_code=201)
