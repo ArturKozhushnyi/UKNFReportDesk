@@ -8,9 +8,11 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: "postgresql://myuser:mysecretpassword@db:5432/mydatabase"
+      AUTH_SERVICE_URL: "http://auth-service:8001"
     depends_on:
       - db
       - redis
+      - auth-service
   auth-service:
     build: ./auth-service
     container_name: auth-service

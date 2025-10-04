@@ -3,7 +3,8 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import FastAPI, Depends, HTTPException
+import httpx
+from fastapi import FastAPI, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy import (
     create_engine, text, MetaData, Table, Column,
@@ -12,8 +13,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import sessionmaker, Session
 
 
-# Read DATABASE_URL from environment variables
+# Read environment variables
 DATABASE_URL = os.getenv("DATABASE_URL")
+AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth-service:8001")
+
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL environment variable is not set")
 
@@ -155,6 +158,76 @@ def get_db():
         db.close()
 
 
+def check_authorization(resource_id: str):
+    """
+    Reusable authorization dependency that checks if the user has permission
+    to access the specified resource by calling the auth-service.
+    
+    Args:
+        resource_id: The resource identifier (e.g., "api:subjects:create")
+    
+    Returns:
+        None if authorized, raises HTTPException if not authorized
+    """
+    def _check_auth(authorization: str = Header(None)):
+        if not authorization:
+            raise HTTPException(
+                status_code=401,
+                detail="Authorization header is required"
+            )
+        
+        # Extract Bearer token
+        if not authorization.startswith("Bearer "):
+            raise HTTPException(
+                status_code=401,
+                detail="Authorization header must start with 'Bearer '"
+            )
+        
+        session_id = authorization[7:]  # Remove "Bearer " prefix
+        
+        if not session_id:
+            raise HTTPException(
+                status_code=401,
+                detail="Session ID is required"
+            )
+        
+        # Call auth-service to check authorization
+        try:
+            with httpx.Client() as client:
+                response = client.post(
+                    f"{AUTH_SERVICE_URL}/authz",
+                    json={
+                        "session_id": session_id,
+                        "resource_id": resource_id
+                    },
+                    timeout=5.0
+                )
+                
+                if response.status_code != 200:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Access denied: insufficient permissions"
+                    )
+                
+                # Authorization successful
+                return None
+                
+        except httpx.RequestError as e:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Authorization service unavailable: {str(e)}"
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Authorization check failed: {str(e)}"
+            )
+    
+    return _check_auth
+
+
 @app.get("/")
 def root():
     """Root endpoint"""
@@ -172,7 +245,11 @@ def healthz(db: Session = Depends(get_db)):
 
 
 @app.post("/subjects", response_model=SubjectOut, status_code=201)
-def create_subject(subject_data: SubjectIn, db: Session = Depends(get_db)):
+def create_subject(
+    subject_data: SubjectIn, 
+    db: Session = Depends(get_db),
+    _: None = Depends(check_authorization("api:subjects:create"))
+):
     """Create a new subject (banking entity)"""
     # Convert Pydantic model to dict, excluding unset fields
     data = subject_data.model_dump(exclude_unset=True)
@@ -192,7 +269,11 @@ def create_subject(subject_data: SubjectIn, db: Session = Depends(get_db)):
 
 
 @app.get("/subjects/{id}", response_model=SubjectOut)
-def get_subject(id: int, db: Session = Depends(get_db)):
+def get_subject(
+    id: int, 
+    db: Session = Depends(get_db),
+    _: None = Depends(check_authorization("api:subjects:read"))
+):
     """Fetch a subject by ID"""
     stmt = select(subjects).where(subjects.c.ID == id)
     result = db.execute(stmt)
@@ -205,7 +286,11 @@ def get_subject(id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/users/{id}", response_model=UserOut)
-def get_user(id: int, db: Session = Depends(get_db)):
+def get_user(
+    id: int, 
+    db: Session = Depends(get_db),
+    _: None = Depends(check_authorization("api:users:read"))
+):
     """Fetch a user by ID"""
     stmt = select(users).where(users.c.ID == id)
     result = db.execute(stmt)
