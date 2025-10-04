@@ -29,7 +29,7 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
 # Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 
 # Database metadata and tables
 metadata = MetaData()
@@ -43,7 +43,7 @@ users = Table(
     Column("PHONE", String(250)),
     Column("EMAIL", String(500)),
     Column("PESEL", String(11)),
-    Column("PASSWORD_HASH", String(64)),
+    Column("PASSWORD_HASH", String(128)),
     Column("IS_USER_ACTIVE", Boolean),
     Column("UKNF_ID", String(100)),
 )

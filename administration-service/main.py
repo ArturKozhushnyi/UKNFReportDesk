@@ -63,7 +63,7 @@ users = Table(
     Column("PHONE", String(250)),
     Column("EMAIL", String(500)),
     Column("PESEL", String(11)),
-    Column("PASSWORD_HASH", String(64)),
+    Column("PASSWORD_HASH", String(128)),
     Column("IS_USER_ACTIVE", Boolean),
     Column("UKNF_ID", String(100)),
     Column("DATE_CREATE", DateTime(timezone=True)),

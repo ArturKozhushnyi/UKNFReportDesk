@@ -69,8 +69,12 @@ The service uses the following tables from the shared PostgreSQL schema:
 
 ## Security Features
 
-- Password hashing with bcrypt
+- Password hashing with sha256_crypt
 - Session-based authentication
 - Secure session ID generation (UUID)
 - Input validation with Pydantic
 - SQL injection protection with SQLAlchemy
+
+## Security Note
+
+While this implementation uses `sha256_crypt` for password hashing as requested, it's important to note that **`bcrypt` is generally the industry-recommended standard** for password hashing. This is because `bcrypt` is an adaptive algorithm specifically designed to be slow and resistant to hardware-accelerated (GPU) brute-force attacks, whereas SHA-256 is a general-purpose fast hash function. For production systems handling sensitive data, consider using `bcrypt` or other purpose-built password hashing algorithms like `argon2` for enhanced security.
