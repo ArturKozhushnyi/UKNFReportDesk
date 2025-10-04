@@ -70,6 +70,21 @@ users = Table(
     Column("DATE_ACTRUALIZATION", DateTime(timezone=True)),
 )
 
+groups = Table(
+    "GROUPS",
+    metadata,
+    Column("ID", BigInteger, primary_key=True),
+    Column("GROUP_NAME", String(250)),
+)
+
+users_groups = Table(
+    "USERS_GROUPS",
+    metadata,
+    Column("ID", BigInteger, primary_key=True),
+    Column("USER_ID", BigInteger),
+    Column("GROUP_ID", BigInteger),
+)
+
 
 # Pydantic models
 class SubjectIn(BaseModel):
@@ -130,6 +145,10 @@ class UserOut(BaseModel):
     UKNF_ID: Optional[str] = None
     DATE_CREATE: Optional[datetime] = None
     DATE_ACTRUALIZATION: Optional[datetime] = None
+
+
+class UserGroupAssociation(BaseModel):
+    group_id: int
 
 
 @asynccontextmanager
@@ -300,6 +319,69 @@ def get_user(
         raise HTTPException(status_code=404, detail="User not found")
     
     return UserOut(**row._mapping)
+
+
+@app.post("/users/{user_id}/groups", status_code=201)
+def add_user_to_group(
+    user_id: int,
+    group_association: UserGroupAssociation,
+    db: Session = Depends(get_db),
+    _: None = Depends(check_authorization("api:users:add_to_group"))
+):
+    """Add a user to a group"""
+    try:
+        # Verify user exists
+        user_stmt = select(users).where(users.c.ID == user_id)
+        user_result = db.execute(user_stmt)
+        user_row = user_result.fetchone()
+        
+        if user_row is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Verify group exists
+        group_stmt = select(groups).where(groups.c.ID == group_association.group_id)
+        group_result = db.execute(group_stmt)
+        group_row = group_result.fetchone()
+        
+        if group_row is None:
+            raise HTTPException(status_code=404, detail="Group not found")
+        
+        # Check if user is already in the group
+        existing_stmt = select(users_groups).where(
+            (users_groups.c.USER_ID == user_id) &
+            (users_groups.c.GROUP_ID == group_association.group_id)
+        )
+        existing_result = db.execute(existing_stmt)
+        existing_row = existing_result.fetchone()
+        
+        if existing_row is not None:
+            raise HTTPException(
+                status_code=400, 
+                detail="User is already a member of this group"
+            )
+        
+        # Add user to group
+        insert_stmt = insert(users_groups).values(
+            USER_ID=user_id,
+            GROUP_ID=group_association.group_id
+        )
+        db.execute(insert_stmt)
+        db.commit()
+        
+        return {
+            "message": "User successfully added to group",
+            "user_id": user_id,
+            "group_id": group_association.group_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to add user to group: {str(e)}"
+        )
 
 
 if __name__ == "__main__":
