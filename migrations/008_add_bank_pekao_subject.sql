@@ -57,7 +57,7 @@ SELECT
     'WARSZAWA',
     '+48 22 656 00 00',
     'info@pekao.com.pl',
-    NULL,
+    "732826",
     'actywny',
     'Bank',
     'Bank',
