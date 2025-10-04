@@ -21,7 +21,7 @@ def test_user_group_association():
     # Step 1: Register and login as admin user
     print("\n1. Setting up admin user...")
     admin_data = {
-        "email": "admin@example.com",
+        "email": "admin2@example.com",
         "password": "adminpassword123",
         "user_name": "Admin",
         "user_lastname": "User"
@@ -39,7 +39,7 @@ def test_user_group_association():
     
     # Login to get session
     login_data = {
-        "email": "admin@example.com",
+        "email": "admin2@example.com",
         "password": "adminpassword123"
     }
     
