@@ -51,6 +51,22 @@ subjects = Table(
     Column("DATE_ACTRUALIZATION", DateTime(timezone=True)),
 )
 
+users = Table(
+    "USERS",
+    metadata,
+    Column("ID", BigInteger, primary_key=True),
+    Column("USER_NAME", String(250)),
+    Column("USER_LASTNAME", String(250)),
+    Column("PHONE", String(250)),
+    Column("EMAIL", String(500)),
+    Column("PESEL", String(11)),
+    Column("PASSWORD_HASH", String(64)),
+    Column("IS_USER_ACTIVE", Boolean),
+    Column("UKNF_ID", String(100)),
+    Column("DATE_CREATE", DateTime(timezone=True)),
+    Column("DATE_ACTRUALIZATION", DateTime(timezone=True)),
+)
+
 
 # Pydantic models
 class SubjectIn(BaseModel):
@@ -96,6 +112,19 @@ class SubjectOut(BaseModel):
     SELEKTOR_S: Optional[str] = None
     SUBSELEKTOR_S: Optional[str] = None
     TRANS_S: Optional[bool] = None
+    DATE_CREATE: Optional[datetime] = None
+    DATE_ACTRUALIZATION: Optional[datetime] = None
+
+
+class UserOut(BaseModel):
+    ID: int
+    USER_NAME: Optional[str] = None
+    USER_LASTNAME: Optional[str] = None
+    PHONE: Optional[str] = None
+    EMAIL: Optional[str] = None
+    PESEL: Optional[str] = None
+    IS_USER_ACTIVE: Optional[bool] = None
+    UKNF_ID: Optional[str] = None
     DATE_CREATE: Optional[datetime] = None
     DATE_ACTRUALIZATION: Optional[datetime] = None
 
@@ -173,6 +202,19 @@ def get_subject(id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Subject not found")
     
     return SubjectOut(**row._mapping)
+
+
+@app.get("/users/{id}", response_model=UserOut)
+def get_user(id: int, db: Session = Depends(get_db)):
+    """Fetch a user by ID"""
+    stmt = select(users).where(users.c.ID == id)
+    result = db.execute(stmt)
+    row = result.fetchone()
+    
+    if row is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return UserOut(**row._mapping)
 
 
 if __name__ == "__main__":
