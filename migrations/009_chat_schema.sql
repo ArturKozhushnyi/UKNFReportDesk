@@ -364,9 +364,26 @@ CREATE INDEX IF NOT EXISTS "IDX_CONVERSATION_TAGS_TAG"
 CREATE INDEX IF NOT EXISTS "IDX_CONVERSATION_TAGS_ADDED_BY" 
     ON "CONVERSATION_TAGS"("ADDED_BY_USER_ID");
 
--- GIN index for tag search
-CREATE INDEX IF NOT EXISTS "IDX_CONVERSATION_TAGS_TAG_TRGM" 
-    ON "CONVERSATION_TAGS" USING GIN ("TAG" gin_trgm_ops);
+-- GIN index for tag search (conditional on pg_trgm extension)
+DO $$
+BEGIN
+    -- Check if pg_trgm extension exists before creating trigram index
+    IF EXISTS (
+        SELECT 1 
+        FROM pg_extension 
+        WHERE extname = 'pg_trgm'
+    ) THEN
+        -- Create trigram index for fuzzy search
+        CREATE INDEX IF NOT EXISTS "IDX_CONVERSATION_TAGS_TAG_TRGM" 
+            ON "CONVERSATION_TAGS" USING GIN ("TAG" gin_trgm_ops);
+        RAISE NOTICE 'Trigram index created successfully';
+    ELSE
+        -- Create regular index instead
+        CREATE INDEX IF NOT EXISTS "IDX_CONVERSATION_TAGS_TAG_FALLBACK" 
+            ON "CONVERSATION_TAGS"("TAG");
+        RAISE NOTICE 'Regular index created (pg_trgm extension not available)';
+    END IF;
+END $$;
 
 -- ============================================================================
 -- Table: ASSIGNMENT_HISTORY
@@ -419,7 +436,31 @@ CREATE INDEX IF NOT EXISTS "IDX_ASSIGNMENT_HISTORY_ASSIGNED_AT"
 -- ============================================================================
 -- Enable pg_trgm extension for fuzzy text search (if not already enabled)
 -- ============================================================================
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
+-- Note: pg_trgm extension must be installed in the database
+-- If you get an error about gin_trgm_ops not existing, run this first:
+-- CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- Create the extension if it doesn't exist
+DO $$
+BEGIN
+    -- Check if pg_trgm extension exists
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM pg_extension 
+        WHERE extname = 'pg_trgm'
+    ) THEN
+        -- Try to create the extension
+        BEGIN
+            CREATE EXTENSION pg_trgm;
+            RAISE NOTICE 'pg_trgm extension created successfully';
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'Failed to create pg_trgm extension: %', SQLERRM;
+            RAISE NOTICE 'You may need to install postgresql-contrib package first';
+        END;
+    ELSE
+        RAISE NOTICE 'pg_trgm extension already exists';
+    END IF;
+END $$;
 
 -- ============================================================================
 -- Comments for documentation

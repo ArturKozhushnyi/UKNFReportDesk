@@ -34,6 +34,36 @@ pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 # Database metadata and tables
 metadata = MetaData()
 
+# SUBJECTS table definition (copied from administration-service)
+subjects = Table(
+    "SUBJECTS",
+    metadata,
+    Column("ID", BigInteger, primary_key=True),
+    Column("TYPE_STRUCTURE", String(250)),
+    Column("CODE_UKNF", String(250)),
+    Column("NAME_STRUCTURE", String(500)),
+    Column("LEI", String(20)),
+    Column("NIP", String(10)),
+    Column("KRS", String(10)),
+    Column("STREET", String(250)),
+    Column("NR_STRET", String(250)),
+    Column("NR_HOUSE", String(250)),
+    Column("POST_CODE", String(250)),
+    Column("TOWN", String(250)),
+    Column("PHONE", String(250)),
+    Column("EMAIL", String(500)),
+    Column("UKNF_ID", String(100)),
+    Column("STATUS_S", String(250)),
+    Column("KATEGORY_S", String(500)),
+    Column("SELEKTOR_S", String(500)),
+    Column("SUBSELEKTOR_S", String(500)),
+    Column("TRANS_S", Boolean),
+    Column("DATE_CREATE", DateTime(timezone=True)),
+    Column("DATE_ACTRUALIZATION", DateTime(timezone=True)),
+    Column("VALIDATED", Boolean),
+)
+
+# USERS table definition (updated with SUBJECT_ID)
 users = Table(
     "USERS",
     metadata,
@@ -46,6 +76,9 @@ users = Table(
     Column("PASSWORD_HASH", String(128)),
     Column("IS_USER_ACTIVE", Boolean),
     Column("UKNF_ID", String(100)),
+    Column("SUBJECT_ID", BigInteger),
+    Column("DATE_CREATE", DateTime(timezone=True)),
+    Column("DATE_ACTRUALIZATION", DateTime(timezone=True)),
 )
 
 groups = Table(
@@ -87,6 +120,35 @@ class UserRegister(BaseModel):
     phone: Optional[str] = None
     pesel: Optional[str] = None
     uknf_id: Optional[str] = None
+    subject_id: Optional[int] = None
+
+class UserOut(BaseModel):
+    ID: int
+    USER_NAME: Optional[str] = None
+    USER_LASTNAME: Optional[str] = None
+    PHONE: Optional[str] = None
+    EMAIL: Optional[str] = None
+    PESEL: Optional[str] = None
+    IS_USER_ACTIVE: Optional[bool] = None
+    UKNF_ID: Optional[str] = None
+    SUBJECT_ID: Optional[int] = None
+    DATE_CREATE: Optional[datetime] = None
+    DATE_ACTRUALIZATION: Optional[datetime] = None
+    
+    @staticmethod
+    def mask_pesel(pesel: Optional[str]) -> Optional[str]:
+        """Mask PESEL to show only last 4 digits (format: *******5123)"""
+        if not pesel or len(pesel) < 4:
+            return pesel
+        return '*' * (len(pesel) - 4) + pesel[-4:]
+    
+    @classmethod
+    def from_db_row(cls, row):
+        """Create UserOut instance from database row with masked PESEL"""
+        data = dict(row._mapping)
+        if data.get('PESEL'):
+            data['PESEL'] = cls.mask_pesel(data['PESEL'])
+        return cls(**data)
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -179,7 +241,7 @@ def healthz(db: Session = Depends(get_db)):
 
 @app.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
 def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
-    """Register a new user"""
+    """Register a new user with automatic subject creation"""
     try:
         # Check if user already exists
         stmt = select(users).where(users.c.EMAIL == user_data.email)
@@ -192,10 +254,30 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
                 detail="User with this email already exists"
             )
         
+        # Generate a shared UUID for both user and subject
+        shared_uknf_id = str(uuid.uuid4())
+        
         # Hash password
         hashed_password = get_password_hash(user_data.password)
         
-        # Prepare user data
+        # Get current timestamp
+        now = datetime.now(timezone.utc)
+        
+        # Step 1: Create an empty subject first
+        subject_dict = {
+            "UKNF_ID": shared_uknf_id,
+            "DATE_CREATE": now,
+            "DATE_ACTRUALIZATION": now,
+            "VALIDATED": False,
+            "STATUS_S": "inactive"
+        }
+        
+        # Insert subject and get the ID
+        stmt = insert(subjects).values(**subject_dict).returning(subjects.c.ID)
+        result = db.execute(stmt)
+        subject_id = result.fetchone().ID
+        
+        # Step 2: Create the user with reference to the subject
         user_dict = {
             "EMAIL": user_data.email,
             "PASSWORD_HASH": hashed_password,
@@ -203,21 +285,27 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
             "USER_LASTNAME": user_data.user_lastname,
             "PHONE": user_data.phone,
             "PESEL": user_data.pesel,
-            "UKNF_ID": user_data.uknf_id,
-            "IS_USER_ACTIVE": True
+            "UKNF_ID": shared_uknf_id,
+            "SUBJECT_ID": subject_id,
+            "IS_USER_ACTIVE": True,
+            "DATE_CREATE": now,
+            "DATE_ACTRUALIZATION": now
         }
         
         # Insert user
         stmt = insert(users).values(**user_dict).returning(users.c.ID)
         result = db.execute(stmt)
-        db.commit()
-        
         user_id = result.fetchone().ID
+        
+        # Commit the transaction
+        db.commit()
         
         return {
             "message": "User registered successfully",
             "user_id": user_id,
-            "email": user_data.email
+            "subject_id": subject_id,
+            "email": user_data.email,
+            "uknf_id": shared_uknf_id
         }
         
     except HTTPException:

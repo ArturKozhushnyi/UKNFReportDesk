@@ -66,6 +66,7 @@ users = Table(
     Column("PASSWORD_HASH", String(128)),
     Column("IS_USER_ACTIVE", Boolean),
     Column("UKNF_ID", String(100)),
+    Column("SUBJECT_ID", BigInteger),
     Column("DATE_CREATE", DateTime(timezone=True)),
     Column("DATE_ACTRUALIZATION", DateTime(timezone=True)),
 )
@@ -143,6 +144,7 @@ class UserOut(BaseModel):
     PESEL: Optional[str] = None
     IS_USER_ACTIVE: Optional[bool] = None
     UKNF_ID: Optional[str] = None
+    SUBJECT_ID: Optional[int] = None
     DATE_CREATE: Optional[datetime] = None
     DATE_ACTRUALIZATION: Optional[datetime] = None
     
