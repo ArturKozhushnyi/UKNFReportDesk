@@ -8,7 +8,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import (
     create_engine, text, MetaData, Table, Column,
-    BigInteger, String, Boolean, DateTime, insert, select
+    BigInteger, String, Boolean, DateTime, insert, select, update
 )
 from sqlalchemy.orm import sessionmaker, Session
 import redis
@@ -34,7 +34,7 @@ pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 # Database metadata and tables
 metadata = MetaData()
 
-# SUBJECTS table definition (copied from administration-service)
+# SUBJECTS table definition (with RESOURCE_ID for multi-tenant security)
 subjects = Table(
     "SUBJECTS",
     metadata,
@@ -61,9 +61,10 @@ subjects = Table(
     Column("DATE_CREATE", DateTime(timezone=True)),
     Column("DATE_ACTRUALIZATION", DateTime(timezone=True)),
     Column("VALIDATED", Boolean),
+    Column("RESOURCE_ID", String(50)),  # Links to resource for access control
 )
 
-# USERS table definition (updated with SUBJECT_ID)
+# USERS table definition (with SUBJECT_ID)
 users = Table(
     "USERS",
     metadata,
@@ -81,6 +82,7 @@ users = Table(
     Column("DATE_ACTRUALIZATION", DateTime(timezone=True)),
 )
 
+# GROUPS table definition
 groups = Table(
     "GROUPS",
     metadata,
@@ -88,6 +90,7 @@ groups = Table(
     Column("GROUP_NAME", String(250)),
 )
 
+# USERS_GROUPS table definition
 users_groups = Table(
     "USERS_GROUPS",
     metadata,
@@ -96,12 +99,14 @@ users_groups = Table(
     Column("GROUP_ID", BigInteger),
 )
 
+# RESOURCES table definition
 resources = Table(
     "RESOURCES",
     metadata,
     Column("ID", String(50), primary_key=True),
 )
 
+# RESOURCES_ALLOW_LIST table definition
 resources_allow_list = Table(
     "RESOURCES_ALLOW_LIST",
     metadata,
@@ -120,7 +125,7 @@ class UserRegister(BaseModel):
     phone: Optional[str] = None
     pesel: Optional[str] = None
     uknf_id: Optional[str] = None
-    subject_id: Optional[int] = None
+    subject_id: Optional[int] = None  # Optional for existing subject
 
 class UserOut(BaseModel):
     ID: int
@@ -196,8 +201,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Authentication Service",
-    description="User registration, authentication, and authorization service",
-    version="1.0.0",
+    description="User registration, authentication, and authorization service with multi-tenant security",
+    version="2.0.0",
     lifespan=lifespan
 )
 
@@ -220,7 +225,12 @@ def get_password_hash(password: str) -> str:
 @app.get("/")
 def root():
     """Root endpoint"""
-    return {"status": "ok", "service": "auth-service"}
+    return {
+        "status": "ok", 
+        "service": "auth-service",
+        "version": "2.0.0",
+        "features": ["multi-tenant", "auto-admin", "subject-isolation"]
+    }
 
 @app.get("/healthz")
 def healthz(db: Session = Depends(get_db)):
@@ -241,9 +251,23 @@ def healthz(db: Session = Depends(get_db)):
 
 @app.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
 def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
-    """Register a new user with automatic subject creation"""
+    """
+    Register a new user with automatic multi-tenant security setup.
+    
+    This endpoint implements a complex, atomic transaction that:
+    1. Creates an isolated subject entity for the user
+    2. Creates a dedicated admin resource for the subject
+    3. Creates an admin group specific to the subject
+    4. Grants the group permission to manage the subject
+    5. Creates the user account
+    6. Makes the user an admin of their own subject
+    
+    All operations are atomic - if any step fails, everything rolls back.
+    """
     try:
-        # Check if user already exists
+        # ====================================================================
+        # Step 0: Validation - Check if user already exists
+        # ====================================================================
         stmt = select(users).where(users.c.EMAIL == user_data.email)
         result = db.execute(stmt)
         existing_user = result.fetchone()
@@ -254,7 +278,7 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
                 detail="User with this email already exists"
             )
         
-        # Generate a shared UUID for both user and subject
+        # Generate shared UUID for user and subject
         shared_uknf_id = str(uuid.uuid4())
         
         # Hash password
@@ -263,21 +287,79 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
         # Get current timestamp
         now = datetime.now(timezone.utc)
         
-        # Step 1: Create an empty subject first
+        # ====================================================================
+        # Step 1: Create Empty Subject
+        # ====================================================================
+        # Create a subject entity that will be owned by this user
+        subject_name = f"Subject for user {user_data.email}"
+        
         subject_dict = {
+            "NAME_STRUCTURE": subject_name,
             "UKNF_ID": shared_uknf_id,
+            "STATUS_S": "active",
+            "VALIDATED": False,
             "DATE_CREATE": now,
             "DATE_ACTRUALIZATION": now,
-            "VALIDATED": False,
-            "STATUS_S": "inactive"
         }
         
-        # Insert subject and get the ID
+        # Insert subject and capture the ID
         stmt = insert(subjects).values(**subject_dict).returning(subjects.c.ID)
         result = db.execute(stmt)
         subject_id = result.fetchone().ID
         
-        # Step 2: Create the user with reference to the subject
+        print(f"[Registration] Created subject ID: {subject_id}")
+        
+        # ====================================================================
+        # Step 2: Create Admin Resource
+        # ====================================================================
+        # Create a resource that represents administrative control over this subject
+        resource_id = f"subject:admin:{subject_id}"
+        
+        stmt = insert(resources).values(ID=resource_id)
+        db.execute(stmt)
+        
+        print(f"[Registration] Created resource: {resource_id}")
+        
+        # ====================================================================
+        # Step 3: Link Resource to Subject
+        # ====================================================================
+        # Update the subject to reference its admin resource
+        stmt = update(subjects).where(
+            subjects.c.ID == subject_id
+        ).values(RESOURCE_ID=resource_id)
+        db.execute(stmt)
+        
+        print(f"[Registration] Linked subject {subject_id} to resource {resource_id}")
+        
+        # ====================================================================
+        # Step 4: Create Admin Group
+        # ====================================================================
+        # Create a group that will have admin rights over this subject
+        group_name = f"admins_of_subject_{subject_id}"
+        
+        stmt = insert(groups).values(GROUP_NAME=group_name).returning(groups.c.ID)
+        result = db.execute(stmt)
+        group_id = result.fetchone().ID
+        
+        print(f"[Registration] Created admin group: {group_name} (ID: {group_id})")
+        
+        # ====================================================================
+        # Step 5: Grant Permission
+        # ====================================================================
+        # Link the admin group to the resource, granting it permission
+        stmt = insert(resources_allow_list).values(
+            RESOURCE_ID=resource_id,
+            GROUP_ID=group_id,
+            USER_ID=None  # Group-level permission, not user-specific
+        )
+        db.execute(stmt)
+        
+        print(f"[Registration] Granted group {group_id} permission to resource {resource_id}")
+        
+        # ====================================================================
+        # Step 6: Create User
+        # ====================================================================
+        # Create the user account linked to the subject
         user_dict = {
             "EMAIL": user_data.email,
             "PASSWORD_HASH": hashed_password,
@@ -289,29 +371,55 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
             "SUBJECT_ID": subject_id,
             "IS_USER_ACTIVE": True,
             "DATE_CREATE": now,
-            "DATE_ACTRUALIZATION": now
+            "DATE_ACTRUALIZATION": now,
         }
         
-        # Insert user
         stmt = insert(users).values(**user_dict).returning(users.c.ID)
         result = db.execute(stmt)
         user_id = result.fetchone().ID
         
-        # Commit the transaction
+        print(f"[Registration] Created user ID: {user_id}")
+        
+        # ====================================================================
+        # Step 7: Add User to Admin Group
+        # ====================================================================
+        # Make the user a member of the admin group for their subject
+        stmt = insert(users_groups).values(
+            USER_ID=user_id,
+            GROUP_ID=group_id
+        )
+        db.execute(stmt)
+        
+        print(f"[Registration] Added user {user_id} to admin group {group_id}")
+        
+        # ====================================================================
+        # Commit Transaction
+        # ====================================================================
+        # All operations succeeded - commit the transaction
         db.commit()
         
+        print(f"[Registration] Successfully registered user {user_data.email}")
+        print(f"[Registration] User is now admin of subject {subject_id}")
+        
+        # Return success response
         return {
-            "message": "User registered successfully",
+            "message": "User registered successfully with admin privileges",
             "user_id": user_id,
             "subject_id": subject_id,
+            "resource_id": resource_id,
+            "admin_group": group_name,
             "email": user_data.email,
-            "uknf_id": shared_uknf_id
+            "uknf_id": shared_uknf_id,
+            "status": "User is now administrator of their own subject"
         }
         
     except HTTPException:
+        # Re-raise HTTP exceptions (like duplicate email)
         raise
     except Exception as e:
+        # Rollback transaction on any error
         db.rollback()
+        print(f"[Registration] Error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Registration failed: {str(e)}"
