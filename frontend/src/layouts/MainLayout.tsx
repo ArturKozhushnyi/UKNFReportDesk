@@ -65,6 +65,7 @@ const MENU_ITEMS: MenuItem[] = [
     icon: <Settings size={20} />,
     roles: ['internal_user', 'administrator'],
     children: [
+      { label: 'Manage Subjects', path: '/manage-subjects', icon: <Building2 size={18} /> },
       { label: 'User Management', path: '/admin/users', icon: <Users size={18} /> },
       { label: 'Password Policy', path: '/admin/password-policy', icon: <Shield size={18} /> },
       { label: 'Roles & Permissions', path: '/admin/roles', icon: <Shield size={18} /> },

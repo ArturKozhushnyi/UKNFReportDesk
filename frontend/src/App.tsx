@@ -11,6 +11,7 @@ import { CommunicationDashboard } from './pages/CommunicationDashboard';
 import { LoginPage } from './pages/LoginPage';
 import { RegistrationPage } from './pages/RegistrationPage';
 import { SubjectManagementPage } from './pages/SubjectManagementPage';
+import ManageSubjectsPage from './pages/ManageSubjectsPage';
 import './styles/index.css';
 
 // Create QueryClient instance
@@ -66,6 +67,7 @@ function App() {
             </Route>
 
             {/* Subject Management */}
+            <Route path="/manage-subjects" element={<ManageSubjectsPage />} />
             <Route path="/subjects/:subjectId/manage" element={<SubjectManagementPage />} />
 
             {/* 404 */}

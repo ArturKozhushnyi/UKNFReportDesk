@@ -5,7 +5,7 @@ Niniejszy dokument standaryzuje proces wytwarzania oprogramowania przy wsparciu 
 
 ## 1. Wymagania Wstępne
 
-1.1. Środowisko Technologiczne
+## 1.1. Środowisko Technologiczne
 
 ### Zintegrowane Środowisko Programistyczne (IDE): 
 Standardowym środowiskiem jest Cursor AI. Pełni ono rolę platformy dla Egzekutora Promptów, zapewniając automatyczne zarządzanie kontekstem projektu.
@@ -41,7 +41,7 @@ Deweloper weryfikuje i akceptuje wygenerowany prompt.
 
 Egzekutor Promptów wykonuje prompt, tworząc artefakty programistyczne.
 
-2.2. Przykładowe Prompty Wejściowe (dla Kreatora)
+### 2.2. Przykładowe Prompty Wejściowe (dla Kreatora)
 
 Przykład 1 (Migracja Bazy Danych):
 ```

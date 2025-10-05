@@ -314,6 +314,10 @@ class AdministrationAPI extends ApiClient {
   }[]> {
     return this.get(`/subjects/${id}/history`);
   }
+
+  async getManageableSubjects(): Promise<Subject[]> {
+    return this.get('/subjects/manageable');
+  }
 }
 
 export const authAPI = new AuthAPI();

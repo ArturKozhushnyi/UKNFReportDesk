@@ -529,6 +529,95 @@ def create_subject(
     return SubjectOut(**row._mapping)
 
 
+@app.get("/subjects/manageable", response_model=list[SubjectOut])
+def get_manageable_subjects(
+    authorization: str = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Get a list of subjects that the current user has permission to manage.
+    
+    Logic:
+    - If user is UKNF Admin: return all subjects
+    - If user is Subject Admin: return only the subject they admin
+    - If user has no admin permissions: return empty array
+    """
+    try:
+        # Get user ID from session
+        user_id = get_user_id_from_session(authorization)
+        
+        # Check if user is UKNF Admin by checking for administrator group
+        admin_group_stmt = select(groups.c.ID).where(groups.c.GROUP_NAME == 'administrator')
+        admin_group_result = db.execute(admin_group_stmt)
+        admin_group_row = admin_group_result.fetchone()
+        
+        is_uknf_admin = False
+        if admin_group_row:
+            admin_group_id = admin_group_row.ID
+            user_admin_stmt = select(users_groups).where(
+                (users_groups.c.USER_ID == user_id) &
+                (users_groups.c.GROUP_ID == admin_group_id)
+            )
+            user_admin_result = db.execute(user_admin_stmt)
+            is_uknf_admin = user_admin_result.fetchone() is not None
+        
+        if is_uknf_admin:
+            # User is UKNF Admin - return all subjects
+            stmt = select(subjects).order_by(subjects.c.NAME_STRUCTURE.asc())
+            result = db.execute(stmt)
+            subjects_list = [SubjectOut(**row._mapping) for row in result.fetchall()]
+            return subjects_list
+        
+        # Check if user is Subject Admin by looking for subject-specific admin groups
+        # Pattern: "admins_of_subject_{subject_id}"
+        subject_admin_stmt = (
+            select(users_groups.c.GROUP_ID)
+            .select_from(users_groups.join(groups, users_groups.c.GROUP_ID == groups.c.ID))
+            .where(
+                (users_groups.c.USER_ID == user_id) &
+                (groups.c.GROUP_NAME.like('admins_of_subject_%'))
+            )
+        )
+        subject_admin_result = db.execute(subject_admin_stmt)
+        subject_admin_groups = [row.GROUP_ID for row in subject_admin_result.fetchall()]
+        
+        if subject_admin_groups:
+            # User is admin of specific subjects - extract subject IDs from group names
+            subject_ids = []
+            for group_id in subject_admin_groups:
+                group_name_stmt = select(groups.c.GROUP_NAME).where(groups.c.ID == group_id)
+                group_name_result = db.execute(group_name_stmt)
+                group_name_row = group_name_result.fetchone()
+                
+                if group_name_row:
+                    group_name = group_name_row.GROUP_NAME
+                    # Extract subject ID from "admins_of_subject_{subject_id}"
+                    if group_name.startswith('admins_of_subject_'):
+                        try:
+                            subject_id = int(group_name.split('_')[-1])
+                            subject_ids.append(subject_id)
+                        except ValueError:
+                            continue
+            
+            if subject_ids:
+                # Return subjects that user can manage
+                stmt = select(subjects).where(subjects.c.ID.in_(subject_ids)).order_by(subjects.c.NAME_STRUCTURE.asc())
+                result = db.execute(stmt)
+                subjects_list = [SubjectOut(**row._mapping) for row in result.fetchall()]
+                return subjects_list
+        
+        # User has no admin permissions - return empty array
+        return []
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve manageable subjects: {str(e)}"
+        )
+
+
 @app.get("/subjects/{id}", response_model=SubjectOut)
 def get_subject(
     id: int, 
