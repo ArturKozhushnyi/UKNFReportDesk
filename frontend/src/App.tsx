@@ -9,6 +9,7 @@ import { MainLayout } from './layouts/MainLayout';
 import { AuthGuard } from './guards/AuthGuard';
 import { CommunicationDashboard } from './pages/CommunicationDashboard';
 import { LoginPage } from './pages/LoginPage';
+import { RegistrationPage } from './pages/RegistrationPage';
 import './styles/index.css';
 
 // Create QueryClient instance
@@ -29,6 +30,7 @@ function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegistrationPage />} />
           
           {/* Protected Routes */}
           <Route element={<AuthGuard><MainLayout /></AuthGuard>}>

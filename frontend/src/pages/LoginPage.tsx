@@ -4,12 +4,16 @@
  */
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { LogIn, AlertCircle } from 'lucide-react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { LogIn, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 export const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const location = useLocation();
+  const registrationMessage = (location.state as any)?.message;
+  const registrationEmail = (location.state as any)?.email;
+  
+  const [email, setEmail] = useState(registrationEmail || '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -46,6 +50,13 @@ export const LoginPage: React.FC = () => {
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
+          {registrationMessage && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start">
+              <CheckCircle className="text-green-600 mr-2 flex-shrink-0" size={20} />
+              <p className="text-sm text-green-800">{registrationMessage}</p>
+            </div>
+          )}
+          
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
               <AlertCircle className="text-red-600 mr-2 flex-shrink-0" size={20} />
@@ -107,6 +118,19 @@ export const LoginPage: React.FC = () => {
           <p className="text-xs font-semibold text-gray-700 mb-2">Demo Credentials:</p>
           <p className="text-xs text-gray-600">Email: admin@example.com</p>
           <p className="text-xs text-gray-600">Password: admin</p>
+        </div>
+
+        {/* Registration Link */}
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600">
+            Don't have an account?{' '}
+            <Link
+              to="/register"
+              className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+            >
+              Register here
+            </Link>
+          </p>
         </div>
 
         {/* Footer */}
