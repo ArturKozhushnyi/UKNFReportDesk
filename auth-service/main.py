@@ -539,6 +539,97 @@ def logout_user(session_id: str):
             detail=f"Logout failed: {str(e)}"
         )
 
+@app.get("/get-user-id-by-session/{session_id}")
+def get_user_id_by_session(session_id: str):
+    """Get user ID from session ID"""
+    try:
+        # Get user ID from Redis
+        session_key = f"session:{session_id}"
+        user_id = redis_client.get(session_key)
+        
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Session not found or expired"
+            )
+        
+        return {
+            "user_id": int(user_id),
+            "session_id": session_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve user ID: {str(e)}"
+        )
+
+@app.get("/me")
+def get_current_user(session_id: str = None, db: Session = Depends(get_db)):
+    """Get current user details including first name, last name, and subject name"""
+    try:
+        if not session_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session ID is required"
+            )
+        
+        # Get user ID from session
+        session_key = f"session:{session_id}"
+        user_id = redis_client.get(session_key)
+        
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired session"
+            )
+        
+        user_id = int(user_id)
+        
+        # Get user details from database
+        stmt = select(users).where(users.c.ID == user_id)
+        result = db.execute(stmt)
+        user = result.fetchone()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Get subject details if user has a subject
+        subject_name = None
+        if user.SUBJECT_ID:
+            stmt = select(subjects).where(subjects.c.ID == user.SUBJECT_ID)
+            result = db.execute(stmt)
+            subject = result.fetchone()
+            
+            if subject:
+                subject_name = subject.NAME_STRUCTURE
+        
+        # Build response
+        return {
+            "user_id": user.ID,
+            "email": user.EMAIL,
+            "firstName": user.USER_NAME,
+            "lastName": user.USER_LASTNAME,
+            "phone": user.PHONE,
+            "isActive": user.IS_USER_ACTIVE,
+            "subjectId": user.SUBJECT_ID,
+            "subjectName": subject_name,
+            "uknfId": user.UKNF_ID,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get user details: {str(e)}"
+        )
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)

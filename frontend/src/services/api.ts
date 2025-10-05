@@ -105,6 +105,26 @@ class AuthAPI extends ApiClient {
       resource_id: resourceId,
     });
   }
+
+  async getMe(sessionId: string) {
+    return this.get<{
+      user_id: number;
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+      phone: string | null;
+      isActive: boolean;
+      subjectId: number | null;
+      subjectName: string | null;
+      uknfId: string | null;
+    }>('/me', { session_id: sessionId });
+  }
+
+  async getUserIdBySession(sessionId: string) {
+    return this.get<{ user_id: number; session_id: string }>(
+      `/get-user-id-by-session/${sessionId}`
+    );
+  }
 }
 
 // ============================================================================

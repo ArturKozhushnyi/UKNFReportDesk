@@ -109,7 +109,7 @@ const Breadcrumbs: React.FC = () => {
 
 export const MainLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
-  const { user, role, logout } = useAuthStore();
+  const { user, role, firstName, lastName, subjectName, logout } = useAuthStore();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -182,9 +182,20 @@ export const MainLayout: React.FC = () => {
             <div className="flex items-center space-x-4">
               <div className="text-right">
                 <p className="text-sm font-medium text-gray-900">
-                  {user?.USER_NAME} {user?.USER_LASTNAME}
+                  {firstName && lastName 
+                    ? `${firstName} ${lastName}` 
+                    : user?.USER_NAME && user?.USER_LASTNAME
+                    ? `${user.USER_NAME} ${user.USER_LASTNAME}`
+                    : user?.EMAIL || 'User'}
                 </p>
-                <p className="text-xs text-gray-500 capitalize">{role?.replace('_', ' ')}</p>
+                {subjectName && (
+                  <p className="text-xs text-gray-600 mt-0.5">
+                    {subjectName}
+                  </p>
+                )}
+                <p className="text-xs text-gray-500 capitalize mt-0.5">
+                  {role?.replace('_', ' ')}
+                </p>
               </div>
               
               <button

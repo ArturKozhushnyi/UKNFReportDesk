@@ -5,8 +5,30 @@
 
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { LogIn, AlertCircle, CheckCircle } from 'lucide-react';
+import { LogIn, AlertCircle, CheckCircle, User } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+
+// Demo accounts for quick testing
+const DEMO_ACCOUNTS = [
+  {
+    email: 'admin_uknf@example.com',
+    password: 'password123',
+    label: 'UKNF Administrator',
+    description: 'Urząd Komisji Nadzoru Finansowego',
+  },
+  {
+    email: 'admin_pekao@example.com',
+    password: 'password456',
+    label: 'Bank Pekao Admin',
+    description: 'Bank Polska Kasa Opieki SA',
+  },
+  {
+    email: 'admin@example.com',
+    password: 'admin',
+    label: 'System Administrator',
+    description: 'Default admin account',
+  },
+];
 
 export const LoginPage: React.FC = () => {
   const location = useLocation();
@@ -34,6 +56,12 @@ export const LoginPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fillDemoCredentials = (demoEmail: string, demoPassword: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    setError('');
   };
 
   return (
@@ -114,10 +142,36 @@ export const LoginPage: React.FC = () => {
         </form>
 
         {/* Demo Credentials */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <p className="text-xs font-semibold text-gray-700 mb-2">Demo Credentials:</p>
-          <p className="text-xs text-gray-600">Email: admin@example.com</p>
-          <p className="text-xs text-gray-600">Password: admin</p>
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm font-semibold text-blue-900 mb-3 flex items-center">
+            <User size={16} className="mr-2" />
+            Demo Accounts (Click to auto-fill):
+          </p>
+          <div className="space-y-2">
+            {DEMO_ACCOUNTS.map((account, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => fillDemoCredentials(account.email, account.password)}
+                className="w-full text-left p-3 bg-white hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors group"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900 group-hover:text-blue-700">
+                      {account.label}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      {account.description}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 font-mono">
+                      {account.email}
+                    </p>
+                  </div>
+                  <LogIn size={16} className="text-blue-400 group-hover:text-blue-600 flex-shrink-0 ml-2" />
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Registration Link */}

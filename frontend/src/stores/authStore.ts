@@ -13,6 +13,9 @@ interface AuthState {
   sessionId: string | null;
   role: UserRole | null;
   isAuthenticated: boolean;
+  firstName: string | null;
+  lastName: string | null;
+  subjectName: string | null;
   
   // Actions
   login: (email: string, password: string) => Promise<void>;
@@ -28,6 +31,9 @@ export const useAuthStore = create<AuthState>()(
       sessionId: null,
       role: null,
       isAuthenticated: false,
+      firstName: null,
+      lastName: null,
+      subjectName: null,
 
       login: async (email: string, password: string) => {
         try {
@@ -36,24 +42,30 @@ export const useAuthStore = create<AuthState>()(
           // Store session ID
           localStorage.setItem('sessionId', response.session_id);
           
-          // TODO: Fetch user details and determine role
-          // For now, mock the user
-          const mockUser: User = {
-            ID: 1,
-            USER_NAME: 'Demo',
-            USER_LASTNAME: 'User',
-            EMAIL: email,
-            PHONE: null,
-            IS_USER_ACTIVE: true,
+          // Fetch user details from /me endpoint
+          const userDetails = await authAPI.getMe(response.session_id);
+          
+          // Build user object
+          const user: User = {
+            ID: userDetails.user_id,
+            USER_NAME: userDetails.firstName || '',
+            USER_LASTNAME: userDetails.lastName || '',
+            EMAIL: userDetails.email,
+            PHONE: userDetails.phone,
+            IS_USER_ACTIVE: userDetails.isActive,
           };
           
-          const role: UserRole = email.includes('admin') ? 'administrator' : 'internal_user';
+          // Determine role (can be enhanced with actual role from backend)
+          const role: UserRole = email.includes('admin') ? 'administrator' : 'external_user';
           
           set({
-            user: mockUser,
+            user,
             sessionId: response.session_id,
             role,
             isAuthenticated: true,
+            firstName: userDetails.firstName,
+            lastName: userDetails.lastName,
+            subjectName: userDetails.subjectName,
           });
         } catch (error) {
           console.error('Login failed:', error);
@@ -77,6 +89,9 @@ export const useAuthStore = create<AuthState>()(
           sessionId: null,
           role: null,
           isAuthenticated: false,
+          firstName: null,
+          lastName: null,
+          subjectName: null,
         });
       },
 
@@ -96,6 +111,9 @@ export const useAuthStore = create<AuthState>()(
           sessionId: null,
           role: null,
           isAuthenticated: false,
+          firstName: null,
+          lastName: null,
+          subjectName: null,
         });
       },
     }),
@@ -106,6 +124,9 @@ export const useAuthStore = create<AuthState>()(
         sessionId: state.sessionId,
         role: state.role,
         isAuthenticated: state.isAuthenticated,
+        firstName: state.firstName,
+        lastName: state.lastName,
+        subjectName: state.subjectName,
       }),
     }
   )
