@@ -5,15 +5,12 @@
 
 import axios, { AxiosInstance } from 'axios';
 import type {
-  User,
   Report,
   ReportListItem,
   PaginatedResponse,
   Conversation,
   Message,
-  MessageThread,
   Subject,
-  Notification,
   DashboardStats,
   StatusCount,
 } from '../types';
@@ -148,11 +145,11 @@ class CommunicationAPI extends ApiClient {
   }
 
   async getRecentReports(limit: number = 5): Promise<ReportListItem[]> {
-    return this.get('/reporting/reports', {
+    return this.get<PaginatedResponse<ReportListItem>>('/reporting/reports', {
       page: 1,
       page_size: limit,
       archived: false,
-    }).then((res: PaginatedResponse<ReportListItem>) => res.items);
+    }).then((res) => res.items);
   }
 
   // ========================================
