@@ -25,6 +25,18 @@ services:
     depends_on:
       - db
       - redis
+  communication-service:
+    build: ./comunication
+    container_name: communication-service
+    restart: always
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: "postgresql://myuser:mysecretpassword@db:5432/mydatabase"
+      AUTH_SERVICE_URL: "http://auth-service:8001"
+    depends_on:
+      - db
+      - auth-service
   db:
     image: postgres:15
     container_name: local_postgres
