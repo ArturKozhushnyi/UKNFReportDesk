@@ -10,12 +10,8 @@ BEGIN;
 -- UKNF Subject Administration Setup (Subject ID: 1)
 -- ============================================================================
 
--- Step 1: Create admin group for UKNF
-INSERT INTO "GROUPS" ("GROUP_NAME")
-SELECT 'admins_of_UKNF'
-WHERE NOT EXISTS (
-    SELECT 1 FROM "GROUPS" WHERE "GROUP_NAME" = 'admins_of_UKNF'
-);
+-- Step 1: UKNF Admin should be in the 'administrator' group (already exists from migration 002)
+-- No need to create a new group - the 'administrator' group already exists
 
 -- Step 2: Create admin resource for UKNF subject
 INSERT INTO "RESOURCES" ("ID")
@@ -30,14 +26,14 @@ SET "RESOURCE_ID" = 'subject:admin:1'
 WHERE "ID" = 1
   AND "RESOURCE_ID" IS NULL;
 
--- Step 4: Grant permission - link UKNF admin group to UKNF admin resource
+-- Step 4: Grant permission - link administrator group to UKNF admin resource
 INSERT INTO "RESOURCES_ALLOW_LIST" ("RESOURCE_ID", "GROUP_ID", "USER_ID")
 SELECT 
     'subject:admin:1',
     g."ID",
     NULL
 FROM "GROUPS" g
-WHERE g."GROUP_NAME" = 'admins_of_UKNF'
+WHERE g."GROUP_NAME" = 'administrator'
   AND NOT EXISTS (
       SELECT 1 
       FROM "RESOURCES_ALLOW_LIST" ral
@@ -73,7 +69,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM "USERS" WHERE "EMAIL" = 'admin_uknf@example.com'
 );
 
--- Step 6: Add UKNF admin user to UKNF admin group
+-- Step 6: Add UKNF admin user to administrator group
 INSERT INTO "USERS_GROUPS" ("USER_ID", "GROUP_ID")
 SELECT 
     u."ID",
@@ -81,7 +77,7 @@ SELECT
 FROM "USERS" u
 CROSS JOIN "GROUPS" g
 WHERE u."EMAIL" = 'admin_uknf@example.com'
-  AND g."GROUP_NAME" = 'admins_of_UKNF'
+  AND g."GROUP_NAME" = 'administrator'
   AND NOT EXISTS (
       SELECT 1 
       FROM "USERS_GROUPS" ug 
@@ -93,13 +89,13 @@ WHERE u."EMAIL" = 'admin_uknf@example.com'
 -- Bank Pekao Subject Administration Setup (Subject ID: 2)
 -- ============================================================================
 
--- Step 7: Create admin group for Bank Pekao
+-- Step 7: Create admin group for Bank Pekao (Subject ID: 2)
 INSERT INTO "GROUPS" ("GROUP_NAME")
-SELECT 'admins_of_Bank_Polska_Kasa_Opieki_Spółka_Akcyjna'
+SELECT 'admins_of_subject_2'
 WHERE NOT EXISTS (
     SELECT 1 
     FROM "GROUPS" 
-    WHERE "GROUP_NAME" = 'admins_of_Bank_Polska_Kasa_Opieki_Spółka_Akcyjna'
+    WHERE "GROUP_NAME" = 'admins_of_subject_2'
 );
 
 -- Step 8: Create admin resource for Bank Pekao subject
@@ -122,7 +118,7 @@ SELECT
     g."ID",
     NULL
 FROM "GROUPS" g
-WHERE g."GROUP_NAME" = 'admins_of_Bank_Polska_Kasa_Opieki_Spółka_Akcyjna'
+WHERE g."GROUP_NAME" = 'admins_of_subject_2'
   AND NOT EXISTS (
       SELECT 1 
       FROM "RESOURCES_ALLOW_LIST" ral
@@ -166,7 +162,7 @@ SELECT
 FROM "USERS" u
 CROSS JOIN "GROUPS" g
 WHERE u."EMAIL" = 'admin_pekao@example.com'
-  AND g."GROUP_NAME" = 'admins_of_Bank_Polska_Kasa_Opieki_Spółka_Akcyjna'
+  AND g."GROUP_NAME" = 'admins_of_subject_2'
   AND NOT EXISTS (
       SELECT 1 
       FROM "USERS_GROUPS" ug 
@@ -233,13 +229,13 @@ COMMIT;
 -- 1. admin_uknf@example.com
 --    Password: password123
 --    Subject: UKNF (ID: 1)
---    Group: admins_of_UKNF
+--    Group: administrator (global admin - can see all subjects)
 --    Resource: subject:admin:1
 --
 -- 2. admin_pekao@example.com
 --    Password: password456
 --    Subject: Bank Polska Kasa Opieki S.A. (ID: 2)
---    Group: admins_of_Bank_Polska_Kasa_Opieki_Spółka_Akcyjna
+--    Group: admins_of_subject_2 (subject-specific admin)
 --    Resource: subject:admin:2
 
 -- Testing Login:
