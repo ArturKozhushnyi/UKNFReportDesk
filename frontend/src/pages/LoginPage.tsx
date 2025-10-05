@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { LogIn, AlertCircle, CheckCircle, User } from 'lucide-react';
+import { LogIn, AlertCircle, CheckCircle, User, Plus, Minus } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 // Demo accounts for quick testing
@@ -30,6 +30,26 @@ const DEMO_ACCOUNTS = [
   },
 ];
 
+// FAQ data
+const FAQ_ITEMS = [
+  {
+    question: 'What is UKNF Report Desk?',
+    answer: 'It is a dedicated platform for managing and submitting financial reports to the Polish Financial Supervision Authority (UKNF), facilitating secure communication and report tracking.'
+  },
+  {
+    question: 'How do I get an account?',
+    answer: 'Click the \'Don\'t have an account? Register\' link. During registration, a new, isolated organization (Subject) will be created, and you will become its administrator.'
+  },
+  {
+    question: 'Who should I contact for support?',
+    answer: 'For technical support or questions about reports, please use the internal chat system after logging in. Alternatively, contact the primary administrator for your organization.'
+  },
+  {
+    question: 'Is my data secure?',
+    answer: 'Yes. The platform is built with a multi-tenant architecture, ensuring that your organization\'s data is completely isolated and secure from other entities.'
+  }
+];
+
 export const LoginPage: React.FC = () => {
   const location = useLocation();
   const registrationMessage = (location.state as any)?.message;
@@ -39,6 +59,7 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [openFAQ, setOpenFAQ] = useState<number | null>(null);
   
   const login = useAuthStore((state) => state.login);
   const navigate = useNavigate();
@@ -64,8 +85,13 @@ export const LoginPage: React.FC = () => {
     setError('');
   };
 
+  const toggleFAQ = (index: number) => {
+    setOpenFAQ(openFAQ === index ? null : index);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-900 flex flex-col items-center justify-center p-4 space-y-6">
+      {/* Login Form Card */}
       <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
@@ -191,6 +217,33 @@ export const LoginPage: React.FC = () => {
         <div className="mt-8 text-center text-xs text-gray-500">
           <p>&copy; 2025 UKNF Report Desk. All rights reserved.</p>
           <p className="mt-1">GNU General Public License v2.0</p>
+        </div>
+      </div>
+
+      {/* FAQ Section */}
+      <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-md">
+        <h2 className="text-xl font-bold text-gray-900 mb-4 text-center">Frequently Asked Questions</h2>
+        <div className="space-y-3">
+          {FAQ_ITEMS.map((item, index) => (
+            <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                onClick={() => toggleFAQ(index)}
+                className="w-full px-4 py-3 text-left bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+              >
+                <span className="text-sm font-medium text-gray-900 pr-2">{item.question}</span>
+                {openFAQ === index ? (
+                  <Minus className="text-gray-500 flex-shrink-0" size={16} />
+                ) : (
+                  <Plus className="text-gray-500 flex-shrink-0" size={16} />
+                )}
+              </button>
+              {openFAQ === index && (
+                <div className="px-4 py-3 bg-white border-t border-gray-200">
+                  <p className="text-sm text-gray-700 leading-relaxed">{item.answer}</p>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </div>

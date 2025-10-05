@@ -12,6 +12,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegistrationPage } from './pages/RegistrationPage';
 import { SubjectManagementPage } from './pages/SubjectManagementPage';
 import ManageSubjectsPage from './pages/ManageSubjectsPage';
+import { FAQPage } from './pages/FAQPage';
 import './styles/index.css';
 
 // Create QueryClient instance
@@ -69,6 +70,9 @@ function App() {
             {/* Subject Management */}
             <Route path="/manage-subjects" element={<ManageSubjectsPage />} />
             <Route path="/subjects/:subjectId/manage" element={<SubjectManagementPage />} />
+
+            {/* FAQ Page */}
+            <Route path="/faq" element={<FAQPage />} />
 
             {/* 404 */}
             <Route path="*" element={<div className="p-6 bg-white rounded-lg shadow"><h2 className="text-2xl font-bold">Page Not Found</h2></div>} />

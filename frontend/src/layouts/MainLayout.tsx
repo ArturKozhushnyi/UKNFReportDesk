@@ -17,6 +17,7 @@ import {
   X,
   Home,
   ChevronRight,
+  HelpCircle,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import type { UserRole } from '../types';
@@ -34,6 +35,11 @@ const MENU_ITEMS: MenuItem[] = [
     label: 'Dashboard',
     path: '/',
     icon: <Home size={20} />,
+  },
+  {
+    label: 'FAQ',
+    path: '/faq',
+    icon: <HelpCircle size={20} />,
   },
   {
     label: 'Communication Module',
