@@ -37,16 +37,16 @@ services:
     depends_on:
       - db
       - auth-service
-  frontend:
-    build: ./frontend
-    container_name: frontend
-    restart: always
-    ports:
-      - "3000:80"
-    depends_on:
-      - administration-service
-      - auth-service
-      - communication-service
+  # frontend:
+  #   build: ./frontend
+  #   container_name: frontend
+  #   restart: always
+  #   ports:
+  #     - "3000:80"
+  #   depends_on:
+  #     - administration-service
+  #     - auth-service
+  #     - communication-service
   db:
     image: postgres:15
     container_name: local_postgres
