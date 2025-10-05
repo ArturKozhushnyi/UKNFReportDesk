@@ -129,11 +129,29 @@ export interface MessageThread {
 
 export interface Subject {
   ID: number;
-  TYPE_STRUCTURE: string | null;
-  CODE_UKNF: string | null;
-  NAME_STRUCTURE: string | null;
-  EMAIL: string | null;
-  PHONE: string | null;
+  TYPE_STRUCTURE?: string | null;
+  CODE_UKNF?: string | null;
+  NAME_STRUCTURE?: string | null;
+  LEI?: string | null;
+  NIP?: string | null;
+  KRS?: string | null;
+  STREET?: string | null;
+  NR_STRET?: string | null;
+  NR_HOUSE?: string | null;
+  POST_CODE?: string | null;
+  TOWN?: string | null;
+  PHONE?: string | null;
+  EMAIL?: string | null;
+  UKNF_ID?: string | null;
+  STATUS_S?: string | null;
+  KATEGORY_S?: string | null;
+  SELEKTOR_S?: string | null;
+  SUBSELEKTOR_S?: string | null;
+  TRANS_S?: boolean | null;
+  DATE_CREATE?: string | null;
+  DATE_ACTRUALIZATION?: string | null;
+  VALIDATED?: boolean | null;
+  RESOURCE_ID?: string | null;
 }
 
 // ============================================================================

@@ -10,6 +10,7 @@ import { AuthGuard } from './guards/AuthGuard';
 import { CommunicationDashboard } from './pages/CommunicationDashboard';
 import { LoginPage } from './pages/LoginPage';
 import { RegistrationPage } from './pages/RegistrationPage';
+import { SubjectManagementPage } from './pages/SubjectManagementPage';
 import './styles/index.css';
 
 // Create QueryClient instance
@@ -63,6 +64,9 @@ function App() {
               <Route path="entities" element={<div className="p-6 bg-white rounded-lg shadow"><h2 className="text-2xl font-bold">Entities Database</h2></div>} />
               <Route path="entity-updater" element={<div className="p-6 bg-white rounded-lg shadow"><h2 className="text-2xl font-bold">Entity Data Updater</h2></div>} />
             </Route>
+
+            {/* Subject Management */}
+            <Route path="/subjects/:subjectId/manage" element={<SubjectManagementPage />} />
 
             {/* 404 */}
             <Route path="*" element={<div className="p-6 bg-white rounded-lg shadow"><h2 className="text-2xl font-bold">Page Not Found</h2></div>} />

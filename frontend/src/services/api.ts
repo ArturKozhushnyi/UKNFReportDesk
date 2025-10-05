@@ -61,6 +61,10 @@ class ApiClient {
     return this.client.post(url, data).then((res) => res.data);
   }
 
+  put<T>(url: string, data?: any): Promise<T> {
+    return this.client.put(url, data).then((res) => res.data);
+  }
+
   patch<T>(url: string, data?: any): Promise<T> {
     return this.client.patch(url, data).then((res) => res.data);
   }
@@ -278,6 +282,41 @@ class CommunicationAPI extends ApiClient {
 // Export API instances
 // ============================================================================
 
+// ============================================================================
+// Administration Service API (port 8000)
+// ============================================================================
+
+class AdministrationAPI extends ApiClient {
+  constructor() {
+    super('/admin');
+  }
+
+  // ========================================
+  // Subjects
+  // ========================================
+
+  async getSubject(id: number): Promise<Subject> {
+    return this.get(`/subjects/${id}`);
+  }
+
+  async updateSubject(id: number, data: Partial<Subject>): Promise<Subject> {
+    return this.put(`/subjects/${id}`, data);
+  }
+
+  async getSubjectHistory(id: number): Promise<{
+    HISTORY_ID: number;
+    OPERATION_TYPE: string;
+    MODIFIED_AT: string;
+    MODIFIED_BY: number | null;
+    ID: number;
+    NAME_STRUCTURE: string | null;
+    [key: string]: any;
+  }[]> {
+    return this.get(`/subjects/${id}/history`);
+  }
+}
+
 export const authAPI = new AuthAPI();
 export const commAPI = new CommunicationAPI();
+export const adminAPI = new AdministrationAPI();
 
